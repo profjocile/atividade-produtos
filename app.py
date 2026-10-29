@@ -7,6 +7,9 @@ conn = sqlite3.connect("gestao_produtos.db")
  
 # O cursor envia comandos SQL e recebe os resultados
 cursor = conn.cursor()
+
+# O SQLite só verifica chaves estrangeiras se você pedir, a cada conexão
+cursor.execute("PRAGMA foreign_keys = ON;")
  
 print("Conexão estabelecida com sucesso!")
 
@@ -97,10 +100,20 @@ def atualizar_valor_produto(preco, nome):
 
 def excluir_produto(nome): 
 # 2. Excluir um produto
-    cursor.execute("DELETE FROM Produto WHERE nome = ?;", (nome,))
-    print("Linhas excluídas:", cursor.rowcount)
-    
-    conn.commit()
+    try:
+        cursor.execute("DELETE FROM Produto WHERE nome = ?;", (nome,))
+        print("Linhas excluídas:", cursor.rowcount)        
+        conn.commit()
+    except sqlite3.IntegrityError as erro:
+            print(f"Exclusão recusada: {erro}")
+
+def excluir_produto_por_id(id_produto):
+    try:
+        cursor.execute("DELETE FROM Produto WHERE id_produto = ?;", (id_produto,))
+        print("Linhas excluídas:", cursor.rowcount)
+        conn.commit()
+    except sqlite3.IntegrityError as erro:
+        print(f"Exclusão recusada: {erro}")
 
 def valor_por_categoria_sql():
     """Pergunta 1 (SQL): qual o valor investido em estoque por categoria?"""
@@ -243,6 +256,9 @@ mostrar_relatorio_vendas()
 
 # Teste de venda de produto sem estoque (100 notebooks)
 vender_produto(2, 100)
+
+# Teste de exclusão de um produto
+excluir_produto_por_id(3)
 listar_produtos()
 
 cursor.close()
