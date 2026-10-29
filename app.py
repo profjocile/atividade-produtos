@@ -37,6 +37,20 @@ def criar_tabelas():
     conn.commit()
     print("Tabelas 'Categoria' e 'Produto' criadas com sucesso!")
 
+def criar_tabela_vendas():
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Vendas (
+        id_venda INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_produto INTEGER NOT NULL,
+        quantidade INTEGER NOT NULL CHECK(quantidade > 0),
+        data_venda TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (id_produto) REFERENCES Produto(id_produto)
+    );
+    ''')
+    conn.commit()
+    print("Tabela 'Vendas' criada com sucesso!")
+
 def inserir_registros():
     categorias_iniciais = [
         ("Eletrônicos",),
@@ -125,7 +139,34 @@ def listar_produtos_pelo_valor(valor):
     print(f'Produtos com valor menor que {valor}:')
     print(cursor.fetchall())
 
+def registrar_venda(conn, id_produto, quantidade):
+    """Baixa o estoque e registra a venda na mesma transação."""
+    with conn:  # commit se der certo, rollback se der erro
+        conn.execute(
+            "UPDATE Produto SET estoque = estoque - ? WHERE id_produto = ?;",
+            (quantidade, id_produto),
+        )
+        conn.execute(
+            "INSERT INTO Vendas (id_produto, quantidade) VALUES (?, ?);",
+            (id_produto, quantidade),
+        )
+
+def realizar_novas_vendas():
+    """Fase 2 incluindo a tabela de vendas e realizando vendas"""
+
+    novas_vendas = [(1, 3), (2, 2), (1, 4), (3, 1), (4, 5), (5, 10)]
+
+    for id_produto, quantidade in novas_vendas:
+        try:
+            print(f"Venda registrada: {id_produto} x {quantidade}")
+            registrar_venda(conn, id_produto, quantidade)
+        except sqlite3.IntegrityError as erro:
+            print(f"Venda recusada ({id_produto}, {quantidade}): {erro}")
+ 
+    print("Processamento de vendas concluído.")
+
 # criar_tabelas()
+# criar_tabela_vendas()
 # inserir_registros()
 
 listar_produtos()
@@ -134,7 +175,8 @@ listar_produtos()
 #listar_produtos()
 #valor_por_categoria_sql()
 #valor_por_categoria_pandas()
-listar_produtos_pelo_valor(10)
+#listar_produtos_pelo_valor(10)
+#realizar_novas_vendas()
 
 cursor.close()
 conn.close()
