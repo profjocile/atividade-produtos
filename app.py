@@ -165,6 +165,67 @@ def realizar_novas_vendas():
  
     print("Processamento de vendas concluído.")
 
+def mostrar_mais_vendido():
+    query_campeao = """
+    SELECT
+        p.id_produto,
+        p.nome AS produto,
+        c.nome_categoria AS categoria,
+        SUM(v.quantidade) AS total_unidades_vendidas,
+        SUM(v.quantidade * p.preco) AS faturamento_total
+    FROM Vendas v
+    INNER JOIN Produto p ON v.id_produto = p.id_produto
+    INNER JOIN Categoria c ON p.id_categoria = c.id_categoria
+    GROUP BY p.id_produto, p.nome, c.nome_categoria
+    ORDER BY total_unidades_vendidas DESC
+    LIMIT 1;
+    """
+    
+    cursor.execute(query_campeao)
+    resultado = cursor.fetchone()
+    
+    if resultado:
+        id_p, nome, categoria, total_qtd, faturamento = resultado
+        print("\n--- PRODUTO MAIS VENDIDO ---")
+        print(f"Produto: {nome} (ID: {id_p})")
+        print(f"Categoria: {categoria}")
+        print(f"Unidades vendidas: {total_qtd}")
+        print(f"Faturamento gerado: R$ {faturamento:.2f}")
+
+def mostrar_relatorio_vendas():
+    query_ranking = """
+    SELECT
+        p.nome AS Produto,
+        c.nome_categoria AS Categoria,
+        p.preco AS Preco_Unitario,
+        SUM(v.quantidade) AS Qtd_Vendida,
+        SUM(v.quantidade * p.preco) AS Faturamento_Total,
+        p.estoque AS Estoque_Restante
+    FROM Produto p
+    LEFT JOIN Vendas v ON p.id_produto = v.id_produto
+    LEFT JOIN Categoria c ON p.id_categoria = c.id_categoria
+    GROUP BY p.id_produto, p.nome, c.nome_categoria
+    ORDER BY Qtd_Vendida DESC;
+    """
+    
+    df_vendas = pd.read_sql_query(query_ranking, conn)
+    
+    # Produtos sem nenhuma venda aparecem com NULL; troque por zero
+    df_vendas["Qtd_Vendida"] = df_vendas["Qtd_Vendida"].fillna(0).astype(int)
+    df_vendas["Faturamento_Total"] = df_vendas["Faturamento_Total"].fillna(0.0)
+    
+    print("\n--- RANKING DE VENDAS POR PRODUTO ---")
+    print(df_vendas.to_string(index=False))
+
+def vender_produto(id_produto, quantidade):
+    try:
+        registrar_venda(conn, id_produto, quantidade)
+        print(f"Venda registrada: {id_produto} x {quantidade}")
+    except sqlite3.IntegrityError as erro:
+        print(f"Venda recusada ({id_produto}, {quantidade}): {erro}")
+    
+    print("Processamento de vendas concluído.")
+
 # criar_tabelas()
 # criar_tabela_vendas()
 # inserir_registros()
@@ -177,6 +238,12 @@ listar_produtos()
 #valor_por_categoria_pandas()
 #listar_produtos_pelo_valor(10)
 #realizar_novas_vendas()
+mostrar_mais_vendido()
+mostrar_relatorio_vendas()
+
+# Teste de venda de produto sem estoque (100 notebooks)
+vender_produto(2, 100)
+listar_produtos()
 
 cursor.close()
 conn.close()
